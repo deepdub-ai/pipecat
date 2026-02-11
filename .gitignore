@@ -40,4 +40,3 @@ tests/output/
 
 # Build
 *.lock
-.env.example

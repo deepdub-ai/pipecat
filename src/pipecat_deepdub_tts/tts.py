@@ -46,10 +46,13 @@ from pipecat.frames.frames import (
     CancelFrame,
     EndFrame,
     Frame,
+    LLMFullResponseEndFrame,
     StartFrame,
     TTSAudioRawFrame,
 )
+from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.tts_service import InterruptibleTTSService
+from pipecat.transcriptions.language import Language, resolve_language
 from pipecat.utils.tracing.service_decorators import traced_tts
 
 try:
@@ -70,6 +73,54 @@ except ModuleNotFoundError as e:
         "In order to use Deepdub TTS, you need to `pip install websockets`."
     )
     raise Exception(f"Missing module: {e}")
+
+
+def language_to_deepdub_locale(language: Language) -> Optional[str]:
+    """Convert Pipecat Language enum to Deepdub locale codes.
+
+    Args:
+        language: The Language enum value to convert.
+
+    Returns:
+        The corresponding Deepdub locale code, or None if not supported.
+    """
+    LANGUAGE_MAP = {
+        Language.AR: "ar-SA",
+        Language.BG: "bg-BG",
+        Language.CA: "ca-ES",
+        Language.CS: "cs-CZ",
+        Language.DA: "da-DK",
+        Language.DE: "de-DE",
+        Language.EL: "el-GR",
+        Language.EN: "en-US",
+        Language.ES: "es-ES",
+        Language.FI: "fi-FI",
+        Language.FR: "fr-FR",
+        Language.HE: "he-IL",
+        Language.HI: "hi-IN",
+        Language.HR: "hr-HR",
+        Language.HU: "hu-HU",
+        Language.ID: "id-ID",
+        Language.IT: "it-IT",
+        Language.JA: "ja-JP",
+        Language.KO: "ko-KR",
+        Language.MS: "ms-MY",
+        Language.NL: "nl-NL",
+        Language.NO: "nb-NO",
+        Language.PL: "pl-PL",
+        Language.PT: "pt-BR",
+        Language.RO: "ro-RO",
+        Language.RU: "ru-RU",
+        Language.SK: "sk-SK",
+        Language.SV: "sv-SE",
+        Language.TH: "th-TH",
+        Language.TR: "tr-TR",
+        Language.UK: "uk-UA",
+        Language.VI: "vi-VN",
+        Language.ZH: "zh-CN",
+    }
+
+    return resolve_language(language, LANGUAGE_MAP, use_base_code=False)
 
 
 class DeepdubTTSService(InterruptibleTTSService):
@@ -237,6 +288,30 @@ class DeepdubTTSService(InterruptibleTTSService):
         logger.info(f"Setting Deepdub TTS voice to: [{voice_id}]")
         self._voice_id = voice_id
         self._settings["voice_prompt_id"] = voice_id
+
+    def language_to_service_language(self, language: Language) -> Optional[str]:
+        """Convert a Language enum to Deepdub locale format.
+
+        Args:
+            language: The language to convert.
+
+        Returns:
+            The Deepdub-specific locale code, or None if not supported.
+        """
+        return language_to_deepdub_locale(language)
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        """Process a frame and flush audio at the end of a full LLM response.
+
+        Args:
+            frame: The frame to process.
+            direction: The direction to process the frame.
+        """
+        await super().process_frame(frame, direction)
+
+        # When the LLM finishes responding, flush any remaining text
+        if isinstance(frame, (LLMFullResponseEndFrame, EndFrame)):
+            await self.flush_audio()
 
     async def start(self, frame: StartFrame):
         """Start the Deepdub TTS service.
