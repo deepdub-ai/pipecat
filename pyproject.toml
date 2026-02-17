@@ -11,7 +11,7 @@ license = "MIT"
 authors = [
     {name = "Deepdub AI", email = "info@deepdub.ai"},
 ]
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10"
 keywords = ["deepdub", "pipecat", "text-to-speech", "tts", "voice-ai", "conversational-ai"]
 classifiers = [
     "Development Status :: 3 - Alpha",
