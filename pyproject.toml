@@ -3,48 +3,70 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pipecat-deepdub-tts"
-version = "0.1.1"
-description = "Official Deepdub AI TTS integration for Pipecat"
+name = "pipecat-deepdub"
+version = "0.1.0"
+description = "Deepdub text-to-speech and speech-to-text services for Pipecat"
 readme = "README.md"
 license = "MIT"
 authors = [
     {name = "Deepdub AI", email = "info@deepdub.ai"},
 ]
-requires-python = ">=3.10"
-keywords = ["deepdub", "pipecat", "text-to-speech", "tts", "voice-ai", "conversational-ai"]
+requires-python = ">=3.11"
+keywords = ["deepdub", "pipecat", "text-to-speech", "speech-to-text", "tts", "stt", "voice-ai"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
 ]
 dependencies = [
-    "deepdub>=0.1.20",
-    "loguru>=0.7.3",
-    "pipecat-ai>=0.0.97,<0.1.0",
-    "websockets>=15.0.1,<16.0",
+    "pipecat-ai>=1.17.0,<2",
 ]
 
 [project.urls]
-Repository = "https://github.com/deepdub-ai/pipecat-deepdub-tts"
-Issues = "https://github.com/deepdub-ai/pipecat-deepdub-tts/issues"
+Repository = "https://github.com/deepdub-ai/pipecat"
+Issues = "https://github.com/deepdub-ai/pipecat/issues"
+Changelog = "https://github.com/deepdub-ai/pipecat/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
-    "daily-python~=0.23.0",
-    "fastapi>=0.128.8",
-    "pipecat-ai[assemblyai,openai,silero]>=0.0.97,<0.1.0",
+    "pyright>=1.1.400",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
-    "python-dotenv>=1.0.0",
+    "ruff>=0.11.0",
 ]
+example = [
+    "pipecat-ai[daily,openai,runner,silero,webrtc,websocket]>=1.17.0,<2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pipecat_deepdub"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = "test_*.py"
-python_classes = "Test*"
-python_functions = "test_*"
 asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["D", "E", "F", "I", "UP"]
+ignore = ["D105", "D107"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+"examples/*" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pyright]
+include = ["src"]
+typeCheckingMode = "basic"
+pythonVersion = "3.11"
+venvPath = "."
+venv = ".venv"
