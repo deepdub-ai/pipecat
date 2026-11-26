@@ -155,6 +155,55 @@ async def test_vad_stop_finalizes_the_transcript():
     assert finals[0].finalized
 
 
+async def test_silence_tokens_do_not_reopen_the_turn():
+    # The message sequence Deepdub sent live: empty non-final tokens while it hears
+    # silence, including one alongside the finalize confirmation.
+    async def script(ws, message, captured):
+        if isinstance(message, bytes) and not captured.get("spoke"):
+            captured["spoke"] = True
+            await ws.send(json.dumps({"tokens": [_token("", final=False)]}))
+            await ws.send(json.dumps({"tokens": [_token("Hi,", final=False)]}))
+            await ws.send(
+                json.dumps({"tokens": [_token("Hi,", final=True), _token(" there", final=False)]})
+            )
+        elif message == json.dumps({"type": "finalize"}):
+            await ws.send(
+                json.dumps(
+                    {
+                        "tokens": [
+                            _token(" there", final=True),
+                            _token("<fin>", final=True),
+                            _token("", final=False),
+                        ]
+                    }
+                )
+            )
+            await ws.send(json.dumps({"tokens": [_token("", final=False)]}))
+
+    captured: dict = {}
+    async with serve(_server(captured, script), "127.0.0.1", 0) as server:
+        down, _ = await run_test(
+            _service(server),
+            frames_to_send=[
+                VADUserStartedSpeakingFrame(),
+                *_audio(3),
+                VADUserStoppedSpeakingFrame(),
+                *_audio(3),
+                SleepFrame(sleep=0.3),
+            ],
+        )
+
+    transcripts = [
+        f for f in down if isinstance(f, (InterimTranscriptionFrame, TranscriptionFrame))
+    ]
+    assert [(type(f).__name__, f.text) for f in transcripts] == [
+        ("InterimTranscriptionFrame", "Hi,"),
+        ("InterimTranscriptionFrame", "Hi, there"),
+        ("TranscriptionFrame", "Hi, there"),
+    ]
+    assert transcripts[-1].finalized
+
+
 async def test_deepdub_turn_detection_proposes_turns():
     captured: dict = {}
     async with serve(_server(captured, _speak_on_first_audio), "127.0.0.1", 0) as server:
