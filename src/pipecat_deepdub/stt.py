@@ -412,6 +412,9 @@ class DeepdubSTTService(WebsocketSTTService):
             non_final: list[dict[str, Any]] = []
             for token in content.get("tokens") or []:
                 text = token.get("text", "")
+                if not text:
+                    # Deepdub sends empty tokens while it hears silence; they aren't speech.
+                    continue
                 is_marker = text in (_END_TOKEN, _FINALIZED_TOKEN)
                 if not is_marker:
                     await self._user_turn_started()
@@ -428,11 +431,12 @@ class DeepdubSTTService(WebsocketSTTService):
 
             # Final words are held until the endpoint, so the transcript is pushed
             # whole; until then they show in the interim transcript.
-            if self._final_tokens or non_final:
-                tokens = self._final_tokens + non_final
+            tokens = self._final_tokens + non_final
+            interim = "".join(t.get("text", "") for t in tokens)
+            if interim.strip():
                 await self.push_frame(
                     InterimTranscriptionFrame(
-                        text="".join(t.get("text", "") for t in tokens),
+                        text=interim,
                         user_id=self._user_id,
                         timestamp=time_now_iso8601(),
                         language=_language_of(tokens),
